@@ -1,3 +1,6 @@
+#ifndef STRING
+#define STRING
+
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -54,6 +57,8 @@ class String {
   void Swap(String&);
 
  private:
+  void NewBuffer(size_t);
+
   char* str_ = nullptr;
   size_t size_ = 0;
   size_t capacity_ = 0;
@@ -61,3 +66,5 @@ class String {
 
 std::istream& operator>>(std::istream&, String&);
 std::ostream& operator<<(std::ostream&, String const&);
+
+#endif  // #ifndef STRING
