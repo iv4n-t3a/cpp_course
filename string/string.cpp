@@ -39,11 +39,11 @@ String& String::operator+=(String const& other) {
   if (other.size_ + size_ > capacity_) {
     Reserve(other.size_ + size_);
     std::copy(other.str_, other.str_ + other.size_ * sizeof(char),
-        str_ + size_ * sizeof(char));
+              str_ + size_ * sizeof(char));
     Resize(size_ + other.size_);
   } else {
     std::copy(other.str_, other.str_ + other.size_ * sizeof(char),
-        str_ + size_ * sizeof(char));
+              str_ + size_ * sizeof(char));
     Resize(size_ + other.size_);
   }
   return *this;
@@ -61,7 +61,7 @@ String& String::operator*=(size_t mult) {
     Reserve(mult * size_);
     for (size_t i = 1; i < mult; ++i) {
       std::copy(str_, str_ + size_ * sizeof(char),
-          str_ + i * size_ * sizeof(char));
+                str_ + i * size_ * sizeof(char));
     }
     Resize(mult * size_);
   }
