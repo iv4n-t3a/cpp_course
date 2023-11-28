@@ -5,9 +5,6 @@
 #include <iostream>
 #include <utility>
 
-String::String() {}
-String::String(size_t size, char character) { Resize(size, character); }
-
 String::String(char const* str) {
   if (strlen(str) != 0) {
     Resize(strlen(str));
@@ -159,8 +156,8 @@ std::istream& operator>>(std::istream& in, String& str) {
   return in;
 }
 std::ostream& operator<<(std::ostream& out, String const& str) {
-  for (size_t i = 0; i < str.size_; ++i) {
-    out << str.str_[i];
+  for (size_t i = 0; i < str.Size(); ++i) {
+    out << str[i];
   }
   return out;
 }

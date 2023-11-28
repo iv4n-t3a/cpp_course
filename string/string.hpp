@@ -7,8 +7,8 @@
 
 class String {
  public:
-  String();
-  String(size_t size, char character);
+  String() = default;
+  String(size_t size, char character) { Resize(size, character); }
   String(char const*);
   String(String const&);
   String& operator=(String const&);
@@ -42,9 +42,6 @@ class String {
 
   std::vector<String> Split(String const& = " ") const;
   String Join(std::vector<String> const& strings) const;
-
-  friend std::istream& operator>>(std::istream&, String&);
-  friend std::ostream& operator<<(std::ostream&, String const&);
 
   void PushBack(char);
   void PopBack();
