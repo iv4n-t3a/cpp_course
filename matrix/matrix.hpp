@@ -12,14 +12,14 @@ class Matrix {
  public:
   Matrix() = default;
 
-  Matrix(std::vector<std::vector<T>> matrix) {
+  explicit Matrix(std::vector<std::vector<T>> matrix) {
     for (size_t i = 0; i < N; ++i) {
       for (size_t j = 0; j < M; ++j) {
         operator()(i, j) = matrix[i][j];
       }
     }
   }
-  Matrix(const T& elem) { matrix_.fill(elem); }
+  explicit Matrix(const T& elem) { matrix_.fill(elem); }
 
   T& operator()(size_t height, size_t width) {
     return matrix_[height + width * N];
