@@ -10,11 +10,8 @@
 template <size_t N, size_t M, typename T = int64_t>
 class Matrix {
  public:
-  Matrix() {
-    for (size_t i = 0; i < N * M; ++i) {
-      matrix_[i] = T();
-    }
-  }
+  Matrix() = default;
+
   Matrix(std::vector<std::vector<T>> matrix) {
     for (size_t i = 0; i < N; ++i) {
       for (size_t j = 0; j < M; ++j) {
@@ -22,16 +19,12 @@ class Matrix {
       }
     }
   }
-  Matrix(T const& elem) {
-    for (size_t i = 0; i < N * M; ++i) {
-      matrix_[i] = elem;
-    }
-  }
+  Matrix(const T& elem) { matrix_.fill(elem); }
 
   T& operator()(size_t height, size_t width) {
     return matrix_[height + width * N];
   };
-  T const& operator()(size_t height, size_t width) const {
+  const T& operator()(size_t height, size_t width) const {
     return matrix_[height + width * N];
   }
 
@@ -76,7 +69,7 @@ class Matrix {
     }
     return *this;
   }
-  Matrix<N, M, T> operator*=(T const& mult) {
+  Matrix<N, M, T> operator*=(const T& mult) {
     for (size_t i = 0; i < N * M; ++i) {
       matrix_[i] *= mult;
     }
@@ -91,7 +84,7 @@ class Matrix {
     other -= *this;
     return other;
   }
-  Matrix<N, M, T> operator*(T const& mult) {
+  Matrix<N, M, T> operator*(const T& mult) {
     Matrix<N, M, T> copy = *this;
     copy *= mult;
     return copy;
@@ -112,7 +105,7 @@ class Matrix {
   }
 
  private:
-  std::array<T, N * M> matrix_;
+  std::array<T, N * M> matrix_{};
 };
 
 #endif  // #ifndef MATRIX
