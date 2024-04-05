@@ -56,8 +56,8 @@ class List {
 
   struct BaseNode {
     BaseNode() {
-      prev = reinterpret_cast<Node*>(this);
-      next = reinterpret_cast<Node*>(this);
+      prev = static_cast<Node*>(this);
+      next = static_cast<Node*>(this);
     }
 
     Node* prev = nullptr;
@@ -65,8 +65,8 @@ class List {
   };
 
   struct Node : public BaseNode {
-    Node() : data(T()), BaseNode() {}
-    Node(const T& elem) : data(elem), BaseNode() {}
+    Node() : data(), BaseNode() {}
+    Node(const T& elem) : data(elem) {}
     Node(auto... args) : data(T(args...)) {}
 
     T data;
@@ -206,7 +206,7 @@ void List<T, Allocator>::push_back(const T& elem) {
 template <typename T, typename Allocator>
 void List<T, Allocator>::push_front(const T& elem) {
   Node* node = construct_node(alloc_, elem);
-  insert_node(reinterpret_cast<Node*>(&fake_node_), node);
+  insert_node(static_cast<Node*>(&fake_node_), node);
   size_ += 1;
 }
 
@@ -223,7 +223,7 @@ void List<T, Allocator>::pop_front() {
 
 template <typename T, typename Allocator>
 void List<T, Allocator>::clear(node_alloc& alloc, BaseNode& fake_node) {
-  while (fake_node.next != reinterpret_cast<Node*>(&fake_node)) {
+  while (fake_node.next != static_cast<Node*>(&fake_node)) {
     remove_node(alloc, fake_node.next);
   }
 }
