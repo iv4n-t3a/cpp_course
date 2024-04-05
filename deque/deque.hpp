@@ -24,7 +24,7 @@ class Deque {
       std::reverse_iterator<const_iterator>::iterator_type;
 
   Deque() = default;
-  Deque(size_t count);
+  Deque(size_t count) : Deque(count, T()) {}
   Deque(size_t count, const T& value);
   Deque(const Deque& other);
   Deque& operator=(const Deque& other);
@@ -135,19 +135,6 @@ class Deque<T>::Iterator {
 };
 
 template <typename T>
-Deque<T>::Deque(size_t count) {
-  realloc_buffer(count / kBucketSize + (count % kBucketSize == 0 ? 0 : 1), 0);
-  for (size_t i = 0; i < count; ++i) {
-    try {
-      push_back(T());
-    } catch (...) {
-      clean();
-      throw;
-    }
-  }
-}
-
-template <typename T>
 Deque<T>::Deque(size_t count, const T& value) {
   realloc_buffer(count / kBucketSize + (count % kBucketSize == 0 ? 0 : 1), 0);
   for (size_t i = 0; i < count; ++i) {
@@ -217,7 +204,7 @@ void Deque<T>::push_back(const T& elem) {
   }
 
   try {
-    new (&*end_) T(elem);
+    new (buffer_[end_.bucket_] + end_.index_in_bucket_) T(elem);
     end_ += 1;
   } catch (...) {
     throw;
@@ -227,7 +214,7 @@ void Deque<T>::push_back(const T& elem) {
 template <typename T>
 void Deque<T>::pop_back() {
   end_ -= 1;
-  (*end_).~T();
+  end_->~T();
 }
 
 template <typename T>
@@ -242,7 +229,7 @@ void Deque<T>::push_front(const T& elem) {
   }
 
   try {
-    new (&*begin_) T(elem);
+    new (buffer_[begin_.bucket_] + begin_.index_in_bucket_) T(elem);
   } catch (...) {
     begin_ += 1;
     throw;
@@ -251,7 +238,7 @@ void Deque<T>::push_front(const T& elem) {
 
 template <typename T>
 void Deque<T>::pop_front() {
-  (*begin_).~T();
+  begin_->~T();
   begin_ += 1;
 }
 
@@ -335,7 +322,7 @@ void Deque<T>::clean() {
 template <typename T>
 T* Deque<T>::new_bucket() {
   return reinterpret_cast<T*>(
-      new int8_t[kBucketSize * sizeof(T) / sizeof(int8_t)]);
+      new std::byte[kBucketSize * sizeof(T) / sizeof(std::byte)]);
 }
 
 template <typename T>
@@ -439,7 +426,5 @@ bool Deque<T>::Iterator<IsConst>::operator<(Iterator<IsConst> other) const {
   }
   return bucket_ < other.bucket_;
 }
-
-void Foo() { std::cout << "jopa"; }
 
 #endif  // #ifndef DEQUE
