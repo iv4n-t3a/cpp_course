@@ -107,7 +107,10 @@ class List<T, Allocator>::Iterator {
   operator Iterator<true>() const { return Iterator<true>(node_); }
 
   reference operator*() const { return node_->data; }
-  pointer operator->() const { return (T*)((size_t)node_ + sizeof(BaseNode)); }
+  pointer operator->() const {
+    return reinterpret_cast<T*>(reinterpret_cast<size_t>(node_) +
+                                sizeof(BaseNode));
+  }
   Iterator& operator++();
   Iterator& operator--();
   Iterator operator++(int);
