@@ -4,6 +4,7 @@
 #include <iterator>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 template <typename T, typename Allocator = std::allocator<T>>
 class List {
@@ -67,7 +68,8 @@ class List {
   struct Node : public BaseNode {
     Node() : data(), BaseNode() {}
     Node(const T& elem) : data(elem) {}
-    Node(auto... args) : data(T(args...)) {}
+    template <typename... Args>
+    Node(Args&&... args) : data(std::forward<Args>(args)...) {}
 
     T data;
   };
@@ -79,7 +81,8 @@ class List {
   static void clear(node_alloc& alloc, BaseNode& fake_node);
   static void insert_node(Node* prev, Node* node);
   static void remove_node(node_alloc& alloc, Node* node);
-  static Node* construct_node(node_alloc& alloc, auto&... args);
+  template <typename... Args>
+  static Node* construct_node(node_alloc& alloc, Args&&... args);
   static void destroy_node(node_alloc& alloc, Node* node);
 
   BaseNode fake_node_;
@@ -104,7 +107,7 @@ class List<T, Allocator>::Iterator {
   operator Iterator<true>() const { return Iterator<true>(node_); }
 
   reference operator*() const { return node_->data; }
-  pointer operator->() const { return &node_->data; }
+  pointer operator->() const { return (T*)((size_t)node_ + sizeof(BaseNode)); }
   Iterator& operator++();
   Iterator& operator--();
   Iterator operator++(int);
@@ -119,28 +122,28 @@ class List<T, Allocator>::Iterator {
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t cnt, const Allocator& alloc) : alloc_(alloc) {
-  for (size_t i = 0; i < cnt; ++i) {
-    try {
+  try {
+    for (size_t i = 0; i < cnt; ++i) {
       Node* node = construct_node(alloc_);
       insert_node(fake_node_.prev, node);
       size_ += 1;
-    } catch (...) {
-      this->~List();
-      throw;
     }
+  } catch (...) {
+    this->~List();
+    throw;
   }
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t cnt, const T& value, const Allocator& alloc)
     : alloc_(alloc) {
-  for (size_t i = 0; i < cnt; ++i) {
-    try {
+  try {
+    for (size_t i = 0; i < cnt; ++i) {
       push_back(value);
-    } catch (...) {
-      this->~List();
-      throw;
     }
+  } catch (...) {
+    this->~List();
+    throw;
   }
 }
 
@@ -183,16 +186,16 @@ List<T, Allocator>& List<T, Allocator>::operator=(
 template <typename T, typename Allocator>
 void List<T, Allocator>::push_back_range(auto begin, auto end) {
   size_t copyed = 0;
-  for (auto iter = begin; iter != end; ++iter) {
-    try {
+  try {
+    for (auto iter = begin; iter != end; ++iter) {
       push_back(*iter);
       copyed += 1;
-    } catch (...) {
-      for (size_t i = 0; i < copyed; ++i) {
-        pop_back();
-      }
-      throw;
     }
+  } catch (...) {
+    for (size_t i = 0; i < copyed; ++i) {
+      pop_back();
+    }
+    throw;
   }
 }
 
@@ -244,11 +247,12 @@ void List<T, Allocator>::remove_node(node_alloc& alloc, Node* node) {
 }
 
 template <typename T, typename Allocator>
+template <typename... Args>
 List<T, Allocator>::Node* List<T, Allocator>::construct_node(node_alloc& alloc,
-                                                             auto&... args) {
+                                                             Args&&... args) {
   Node* node = node_alloc_traits::allocate(alloc, 1);
   try {
-    node_alloc_traits::construct(alloc, node, args...);
+    node_alloc_traits::construct(alloc, node, std::forward<Args>(args)...);
   } catch (...) {
     node_alloc_traits::deallocate(alloc, node, 1);
     throw;
