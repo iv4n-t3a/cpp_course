@@ -253,11 +253,11 @@ Deque<T, Allocator>& Deque<T, Allocator>::operator=(
     Deque<T, Allocator>&& other) {
   if constexpr (alloc_traits::propagate_on_container_move_assignment::value) {
     auto alloc_copy = std::move(other.alloc_);
-    this->Deque(other);
+    *this = Deque(other);
     alloc_ = std::move(alloc_copy);
   } else {
     auto alloc_copy = std::move(alloc_);
-    this->Deque(other);
+    *this = Deque(other);
     alloc_ = std::move(alloc_copy);
   }
 }
