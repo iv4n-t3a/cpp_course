@@ -150,9 +150,9 @@ class Deque<T, Allocator>::Iterator {
   bool operator>=(Iterator<IsConst> other) const { return not(*this > other); }
 
   reference operator*() { return buffer_[bucket_][index_in_bucket_]; }
-  pointer operator->() { return &buffer_[bucket_][index_in_bucket_]; }
+  pointer operator->() { return buffer_[bucket_] + index_in_bucket_; }
   reference operator*() const { return buffer_[bucket_][index_in_bucket_]; }
-  pointer operator->() const { return &buffer_[bucket_][index_in_bucket_]; }
+  pointer operator->() const { return buffer_[bucket_] + index_in_bucket_; }
 
  protected:
   void replace_buffer(T** buffer) { buffer_ = buffer; }
@@ -415,7 +415,7 @@ void Deque<T, Allocator>::realloc_buffer(size_t buckets, size_t offset) {
 
   if (buffer_ != nullptr) {
     std::copy(buffer_, buffer_ + buckets_, allocated_buffer + offset);
-    buffer_alloc_traits::deallocate(buff_alloc_, buffer_, buckets);
+    buffer_alloc_traits::deallocate(buff_alloc_, buffer_, buckets_);
   }
 
   buffer_ = allocated_buffer;
