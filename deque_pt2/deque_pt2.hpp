@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
-#include <iostream>
 #include <iterator>
 #include <memory>
 #include <type_traits>
@@ -249,14 +248,14 @@ Deque<T, Allocator>& Deque<T, Allocator>::operator=(
     swap_fields_without_alloc(tmp);
   } else {
     auto copy(std::move(*this));
-
+    realloc_buffer((other.size() + kBucketSize - 1) / kBucketSize, 0);
     try {
       for (auto& val : other) {
         emplace_back(val);
       }
     } catch (...) {
       clean();
-      *this = std::move(copy);
+      move_fields_from_other(std::move(copy));
     }
   }
 
@@ -273,6 +272,9 @@ Deque<T, Allocator>& Deque<T, Allocator>::operator=(
     move_fields_from_other(other);
   } else {
     destroy_elements();
+    if (kBucketSize * buckets_ < other.size()) {
+      realloc_buffer((other.size() + kBucketSize - 1) / kBucketSize, 0);
+    }
     for (auto& val : other) {
       emplace_back(std::move(val));
     }
@@ -472,8 +474,8 @@ void Deque<T, Allocator>::destroy_elements() {
     destroy(iter);
   }
 
-  begin_ = iterator(buckets_ / 2, buffer_);
-  end_ = iterator(buckets_ / 2, buffer_);
+  begin_ = iterator(0, buffer_);
+  end_ = iterator(0, buffer_);
 }
 template <typename T, typename Allocator>
 void Deque<T, Allocator>::destroy(iterator iter) {
