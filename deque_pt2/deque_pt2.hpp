@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <type_traits>
@@ -86,16 +87,20 @@ class Deque {
   using buffer_alloc = typename alloc_traits::template rebind_alloc<T*>;
   using buffer_alloc_traits = std::allocator_traits<buffer_alloc>;
 
+  void move_fields_from_other(Deque<T, Allocator>&& other);
+  void swap_fields_without_alloc(Deque<T, Allocator>& other);
+
   void expand_buffer();
   void realloc_buffer(size_t buckets, size_t offset);
   void clean();
+  void destroy_elements();
 
   void destroy(iterator iter);
   void construct(iterator iter, auto&&... args);
 
   T* allocate_bucket();
   T** allocate_buffer(size_t buckets);
-  void remove_buffer(T** buffer, size_t buckets);
+  void deallocate_buffer(T** buffer, size_t buckets);
 
   iterator begin_ = iterator();
   iterator end_ = iterator();
@@ -228,46 +233,57 @@ template <typename T, typename Allocator>
 Deque<T, Allocator>::Deque(Deque&& other)
     : alloc_(alloc_traits::select_on_container_copy_construction(other.alloc_)),
       buff_alloc_(alloc_) {
-  std::swap(buffer_, other.buffer_);
-  std::swap(begin_, other.begin_);
-  std::swap(end_, other.end_);
-  std::swap(buckets_, other.buckets_);
+  move_fields_from_other(std::move(other));
 }
 
 template <typename T, typename Allocator>
 Deque<T, Allocator>& Deque<T, Allocator>::operator=(
     const Deque<T, Allocator>& other) {
-  auto tmp(other);
   if constexpr (alloc_traits::propagate_on_container_copy_assignment::value) {
-    swap(tmp);
+    auto tmp(other);
+    swap_fields_without_alloc(tmp);
     alloc_ = other.alloc_;
+    buff_alloc_ = other.buff_alloc_;
+  } else if (alloc_ == other.alloc_) {
+    auto tmp(other);
+    swap_fields_without_alloc(tmp);
   } else {
-    auto alloc_copy = std::move(alloc_);
-    swap(tmp);
-    alloc_ = std::move(alloc_copy);
+    auto copy(std::move(*this));
+
+    try {
+      for (auto& val : other) {
+        emplace_back(val);
+      }
+    } catch (...) {
+      clean();
+      *this = std::move(copy);
+    }
   }
+
   return *this;
 }
 template <typename T, typename Allocator>
 Deque<T, Allocator>& Deque<T, Allocator>::operator=(
     Deque<T, Allocator>&& other) {
   if constexpr (alloc_traits::propagate_on_container_move_assignment::value) {
-    auto alloc_copy = std::move(other.alloc_);
-    *this = Deque(other);
-    alloc_ = std::move(alloc_copy);
+    move_fields_from_other(std::move(other));
+    alloc_ = std::move(other.alloc_);
+    buff_alloc_ = std::move(other.buff_alloc_);
+  } else if (alloc_ == other.alloc_) {
+    move_fields_from_other(other);
   } else {
-    auto alloc_copy = std::move(alloc_);
-    *this = Deque(other);
-    alloc_ = std::move(alloc_copy);
+    destroy_elements();
+    for (auto& val : other) {
+      emplace_back(std::move(val));
+    }
   }
+
+  return *this;
 }
 
 template <typename T, typename Allocator>
 void Deque<T, Allocator>::swap(Deque<T, Allocator>& other) {
-  std::swap(buffer_, other.buffer_);
-  std::swap(begin_, other.begin_);
-  std::swap(end_, other.end_);
-  std::swap(buckets_, other.buckets_);
+  swap_fields_without_alloc(other);
   if constexpr (alloc_traits::propagate_on_container_swap::value) {
     std::swap(alloc_, other.alloc_);
     std::swap(buff_alloc_, other.buff_alloc_);
@@ -331,12 +347,8 @@ void Deque<T, Allocator>::emplace_back(Args&&... args) {
   if (buffer_[end_.bucket_] == nullptr) {
     buffer_[end_.bucket_] = allocate_bucket();
   }
-  try {
-    construct(end_, std::forward<Args>(args)...);
-    end_ += 1;
-  } catch (...) {
-    throw;
-  }
+  construct(end_, std::forward<Args>(args)...);
+  end_ += 1;
 }
 template <typename T, typename Allocator>
 template <typename... Args>
@@ -373,7 +385,7 @@ void Deque<T, Allocator>::insert(iterator iter, T value) {
   push_back(*(end_ - 1));
 
   for (auto i = end_ - 1; i != begin_ + index + 1; --i) {
-    *i = *(i - 1);
+    *i = std::move(*(i - 1));
   }
   *(begin_ + index) = value;
 }
@@ -381,7 +393,7 @@ void Deque<T, Allocator>::insert(iterator iter, T value) {
 template <typename T, typename Allocator>
 void Deque<T, Allocator>::erase(iterator iter) {
   for (; iter != end_ - 1; ++iter) {
-    *iter = *(iter + 1);
+    *iter = std::move(*(iter + 1));
   }
   end_ -= 1;
 }
@@ -398,6 +410,28 @@ bool Deque<T, Allocator>::operator==(Deque<T, Allocator> other) const {
     }
   }
   return true;
+}
+
+template <typename T, typename Allocator>
+void Deque<T, Allocator>::move_fields_from_other(Deque<T, Allocator>&& other) {
+  buffer_ = other.buffer_;
+  begin_ = other.begin_;
+  end_ = other.end_;
+  buckets_ = other.buckets_;
+
+  other.buffer_ = nullptr;
+  other.begin_ = iterator();
+  other.end_ = iterator();
+  other.buckets_ = 0;
+}
+
+template <typename T, typename Allocator>
+void Deque<T, Allocator>::swap_fields_without_alloc(
+    Deque<T, Allocator>& other) {
+  std::swap(buffer_, other.buffer_);
+  std::swap(begin_, other.begin_);
+  std::swap(end_, other.end_);
+  std::swap(buckets_, other.buckets_);
 }
 
 template <typename T, typename Allocator>
@@ -429,10 +463,17 @@ void Deque<T, Allocator>::realloc_buffer(size_t buckets, size_t offset) {
 
 template <typename T, typename Allocator>
 void Deque<T, Allocator>::clean() {
+  destroy_elements();
+  deallocate_buffer(buffer_, buckets_);
+}
+template <typename T, typename Allocator>
+void Deque<T, Allocator>::destroy_elements() {
   for (auto iter = begin_; iter != end_; ++iter) {
     destroy(iter);
   }
-  remove_buffer(buffer_, buckets_);
+
+  begin_ = iterator(buckets_ / 2, buffer_);
+  end_ = iterator(buckets_ / 2, buffer_);
 }
 template <typename T, typename Allocator>
 void Deque<T, Allocator>::destroy(iterator iter) {
@@ -461,7 +502,7 @@ T** Deque<T, Allocator>::allocate_buffer(size_t buckets) {
 }
 
 template <typename T, typename Allocator>
-void Deque<T, Allocator>::remove_buffer(T** buffer, size_t buckets) {
+void Deque<T, Allocator>::deallocate_buffer(T** buffer, size_t buckets) {
   if (buffer == nullptr) {
     return;
   }
